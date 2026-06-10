@@ -7,13 +7,14 @@ import {
   Shield, LayoutDashboard, Video, BellRing, FileText, Settings, LogOut, Volume2, VolumeX,
 } from "lucide-react";
 
-const nav = [
+type NavItem = { to: "/dashboard" | "/monitoring" | "/alerts" | "/incidents" | "/settings"; label: string; icon: typeof LayoutDashboard; admin?: boolean };
+const nav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/monitoring", label: "Live Monitoring", icon: Video },
   { to: "/alerts", label: "Alerts", icon: BellRing },
   { to: "/incidents", label: "Incidents", icon: FileText },
   { to: "/settings", label: "Settings", icon: Settings, admin: true },
-] as const;
+];
 
 function ConnDot({ state }: { state: ConnState }) {
   const map = {
