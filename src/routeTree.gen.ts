@@ -9,38 +9,137 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppMonitoringRouteImport } from './routes/_app.monitoring'
+import { Route as AppIncidentsRouteImport } from './routes/_app.incidents'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppAlertsRouteImport } from './routes/_app.alerts'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMonitoringRoute = AppMonitoringRouteImport.update({
+  id: '/monitoring',
+  path: '/monitoring',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIncidentsRoute = AppIncidentsRouteImport.update({
+  id: '/incidents',
+  path: '/incidents',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAlertsRoute = AppAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/alerts': typeof AppAlertsRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/incidents': typeof AppIncidentsRoute
+  '/monitoring': typeof AppMonitoringRoute
+  '/settings': typeof AppSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/alerts': typeof AppAlertsRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/incidents': typeof AppIncidentsRoute
+  '/monitoring': typeof AppMonitoringRoute
+  '/settings': typeof AppSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_app/alerts': typeof AppAlertsRoute
+  '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/incidents': typeof AppIncidentsRoute
+  '/_app/monitoring': typeof AppMonitoringRoute
+  '/_app/settings': typeof AppSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/alerts'
+    | '/dashboard'
+    | '/incidents'
+    | '/monitoring'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/alerts'
+    | '/dashboard'
+    | '/incidents'
+    | '/monitoring'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/login'
+    | '/_app/alerts'
+    | '/_app/dashboard'
+    | '/_app/incidents'
+    | '/_app/monitoring'
+    | '/_app/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,12 +147,77 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/monitoring': {
+      id: '/_app/monitoring'
+      path: '/monitoring'
+      fullPath: '/monitoring'
+      preLoaderRoute: typeof AppMonitoringRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/incidents': {
+      id: '/_app/incidents'
+      path: '/incidents'
+      fullPath: '/incidents'
+      preLoaderRoute: typeof AppIncidentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/alerts': {
+      id: '/_app/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof AppAlertsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppAlertsRoute: typeof AppAlertsRoute
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppIncidentsRoute: typeof AppIncidentsRoute
+  AppMonitoringRoute: typeof AppMonitoringRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAlertsRoute: AppAlertsRoute,
+  AppDashboardRoute: AppDashboardRoute,
+  AppIncidentsRoute: AppIncidentsRoute,
+  AppMonitoringRoute: AppMonitoringRoute,
+  AppSettingsRoute: AppSettingsRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
