@@ -24,7 +24,11 @@ function LoginPage() {
     setLoading(true);
     try {
       const r = await api.login(username.trim(), password);
-      login({ username: r.username, role: r.role === "admin" ? "admin" : "security" }, r.token);
+      login(
+        { username: r.username, role: r.role === "admin" ? "admin" : "security" },
+        r.token,
+        Boolean((r as { must_change_password?: boolean }).must_change_password),
+      );
       toast.success("Welcome back");
       navigate({ to: "/dashboard" });
     } catch {
