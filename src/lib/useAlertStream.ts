@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { WS_URL, api, enrichAlert, type Alert, type AlertPayload } from "./api";
+import { WS_URL, api, enrichAlert, type AlertPayload, type Alert } from "./api";
 
 export type ConnState = "connected" | "reconnecting" | "offline";
 
