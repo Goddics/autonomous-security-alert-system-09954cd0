@@ -31,17 +31,33 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
 }
 
 // ---------- Types ----------
+// Matches backend contract exactly.
 export type AlertStatus = "new" | "under_review" | "resolved" | "false_alarm";
 
-export interface Alert {
+// Wire shape from REST + WebSocket NEW_ALERT.data
+export interface AlertPayload {
   id: string;
-  alert_type: string;
   camera_id: number;
-  camera_name: string;
+  alert_type: string;
   timestamp: string;
   confidence: number;
   screenshot_url: string;
+  status?: AlertStatus;
+}
+
+// UI-enriched alert (adds camera_name + default status for rendering)
+export interface Alert extends AlertPayload {
+  camera_name: string;
   status: AlertStatus;
+}
+
+export function enrichAlert(a: AlertPayload): Alert {
+  const cam = cameras.find(c => c.id === a.camera_id);
+  return {
+    ...a,
+    camera_name: cam?.name ?? `Camera ${a.camera_id}`,
+    status: a.status ?? "new",
+  };
 }
 
 export interface Incident {
