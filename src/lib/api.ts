@@ -114,6 +114,25 @@ let mockIncidents: Incident[] = [
   },
 ];
 
+// ---------- Mock users ----------
+export type UserRole = "admin" | "security";
+export interface ManagedUser {
+  id: string;
+  username: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+  must_change_password: boolean;
+}
+const mockPasswords: Record<string, string> = {
+  admin: "admin",
+  "officer.kay": "temp1234",
+};
+let mockUsers: ManagedUser[] = [
+  { id: "u_1", username: "admin", role: "admin", is_active: true, created_at: new Date(Date.now() - 86400000 * 30).toISOString(), must_change_password: false },
+  { id: "u_2", username: "officer.kay", role: "security", is_active: true, created_at: new Date(Date.now() - 86400000 * 7).toISOString(), must_change_password: true },
+];
+
 async function tryOrMock<T>(fn: () => Promise<T>, mock: () => T): Promise<T> {
   try { return await fn(); } catch { return mock(); }
 }
@@ -124,14 +143,86 @@ export const api = {
 
   login: (username: string, password: string) =>
     tryOrMock(
-      () => request<{ token: string; role: string; username: string }>("/api/login/", {
+      () => request<{ token: string; role: UserRole; username: string; must_change_password: boolean }>("/api/login/", {
         method: "POST",
         body: JSON.stringify({ username, password }),
       }),
       () => {
-        if (!username) throw new Error("Username required");
-        const role = username.toLowerCase().includes("admin") ? "admin" : "security";
-        return { token: `demo_${Math.random().toString(36).slice(2)}`, role, username };
+        const u = mockUsers.find(x => x.username.toLowerCase() === username.toLowerCase());
+        if (!u) throw new Error("Invalid credentials");
+        if (!u.is_active) throw new Error("Account deactivated");
+        if (mockPasswords[u.username] !== password) throw new Error("Invalid credentials");
+        return {
+          token: `demo_${Math.random().toString(36).slice(2)}`,
+          role: u.role,
+          username: u.username,
+          must_change_password: u.must_change_password,
+        };
+      }
+    ),
+
+  changePassword: (new_password: string) =>
+    tryOrMock<{ ok: true }>(
+      () => request("/api/change-password/", { method: "POST", body: JSON.stringify({ new_password }) }),
+      () => {
+        // mark current user (best-effort, demo only)
+        const raw = typeof window !== "undefined" ? localStorage.getItem("sas_user") : null;
+        if (raw) {
+          try {
+            const u = JSON.parse(raw) as { username: string };
+            mockPasswords[u.username] = new_password;
+            mockUsers = mockUsers.map(x => x.username === u.username ? { ...x, must_change_password: false } : x);
+          } catch { /* noop */ }
+        }
+        return { ok: true };
+      }
+    ),
+
+  listUsers: () =>
+    tryOrMock<ManagedUser[]>(
+      () => request<ManagedUser[]>("/api/users/"),
+      () => [...mockUsers].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+    ),
+
+  createUser: (data: { username: string; password: string; role: UserRole }) =>
+    tryOrMock<ManagedUser>(
+      () => request<ManagedUser>("/api/users/", { method: "POST", body: JSON.stringify(data) }),
+      () => {
+        if (mockUsers.some(u => u.username.toLowerCase() === data.username.toLowerCase())) {
+          throw new Error("Username already exists");
+        }
+        const u: ManagedUser = {
+          id: `u_${Date.now()}`,
+          username: data.username,
+          role: data.role,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          must_change_password: true,
+        };
+        mockUsers = [u, ...mockUsers];
+        mockPasswords[data.username] = data.password;
+        return u;
+      }
+    ),
+
+  resetUserPassword: (id: string, temporary_password: string) =>
+    tryOrMock<ManagedUser>(
+      () => request<ManagedUser>(`/api/users/${id}/reset-password/`, { method: "POST", body: JSON.stringify({ temporary_password }) }),
+      () => {
+        const u = mockUsers.find(x => x.id === id);
+        if (!u) throw new Error("Not found");
+        mockPasswords[u.username] = temporary_password;
+        mockUsers = mockUsers.map(x => x.id === id ? { ...x, must_change_password: true } : x);
+        return mockUsers.find(x => x.id === id)!;
+      }
+    ),
+
+  setUserActive: (id: string, is_active: boolean) =>
+    tryOrMock<ManagedUser>(
+      () => request<ManagedUser>(`/api/users/${id}/`, { method: "PATCH", body: JSON.stringify({ is_active }) }),
+      () => {
+        mockUsers = mockUsers.map(x => x.id === id ? { ...x, is_active } : x);
+        return mockUsers.find(x => x.id === id)!;
       }
     ),
 

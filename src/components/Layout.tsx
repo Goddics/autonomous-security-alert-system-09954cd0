@@ -1,18 +1,20 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useAlertStream, onNewAlert, type ConnState } from "@/lib/useAlertStream";
+import { api } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  Shield, LayoutDashboard, Video, BellRing, FileText, Settings, LogOut, Volume2, VolumeX,
+  Shield, LayoutDashboard, Video, BellRing, FileText, Settings, LogOut, Volume2, VolumeX, Users, KeyRound,
 } from "lucide-react";
 
-type NavItem = { to: "/dashboard" | "/monitoring" | "/alerts" | "/incidents" | "/settings"; label: string; icon: typeof LayoutDashboard; admin?: boolean };
+type NavItem = { to: "/dashboard" | "/monitoring" | "/alerts" | "/incidents" | "/users" | "/settings"; label: string; icon: typeof LayoutDashboard; admin?: boolean };
 const nav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/monitoring", label: "Live Monitoring", icon: Video },
   { to: "/alerts", label: "Alerts", icon: BellRing },
   { to: "/incidents", label: "Incidents", icon: FileText },
+  { to: "/users", label: "User Management", icon: Users, admin: true },
   { to: "/settings", label: "Settings", icon: Settings, admin: true },
 ];
 
@@ -32,7 +34,7 @@ function ConnDot({ state }: { state: ConnState }) {
 }
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, mustChangePassword, clearMustChangePassword, logout } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: s => s.location.pathname });
   const conn = useAlertStream();
@@ -118,6 +120,52 @@ export default function Layout() {
       <main className="flex-1 min-w-0 overflow-x-hidden">
         <Outlet />
       </main>
+      {mustChangePassword && <ForcePasswordChangeModal onDone={clearMustChangePassword} />}
+    </div>
+  );
+}
+
+function ForcePasswordChangeModal({ onDone }: { onDone: () => void }) {
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pw.length < 8) return toast.error("Password must be at least 8 characters");
+    if (pw !== pw2) return toast.error("Passwords do not match");
+    setBusy(true);
+    try {
+      await api.changePassword(pw);
+      toast.success("Password updated");
+      onDone();
+    } catch { toast.error("Update failed"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur flex items-center justify-center p-4">
+      <form onSubmit={submit} className="bg-card border border-border rounded-xl p-6 max-w-md w-full">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-10 w-10 rounded-md bg-warn/15 text-warn flex items-center justify-center">
+            <KeyRound className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-semibold">Change Your Password</h3>
+            <p className="text-xs text-muted-foreground">You signed in with a temporary password. Set a new password to continue.</p>
+          </div>
+        </div>
+        <label className="block text-xs mb-1 text-muted-foreground">New Password</label>
+        <input type="password" value={pw} onChange={e => setPw(e.target.value)} required autoFocus
+          className="w-full mb-3 px-3 py-2 rounded-md bg-input border border-border text-sm" />
+        <label className="block text-xs mb-1 text-muted-foreground">Confirm Password</label>
+        <input type="password" value={pw2} onChange={e => setPw2(e.target.value)} required
+          className="w-full mb-4 px-3 py-2 rounded-md bg-input border border-border text-sm" />
+        <button disabled={busy}
+          className="w-full py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+          {busy ? "Updating…" : "Update Password"}
+        </button>
+      </form>
     </div>
   );
 }
