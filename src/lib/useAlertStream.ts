@@ -44,7 +44,9 @@ export function useAlertStream() {
         ws.onmessage = (e) => {
           try {
             const msg = JSON.parse(e.data);
-            if (msg.event === "NEW_ALERT" && msg.data) emit(msg.data as Alert);
+            if (msg.event === "NEW_ALERT" && msg.data) {
+              emit(enrichAlert(msg.data as AlertPayload));
+            }
           } catch { /* noop */ }
         };
         ws.onclose = () => {
