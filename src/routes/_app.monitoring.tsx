@@ -96,13 +96,13 @@ function MonitoringPage() {
                 </select>
               </div>
               <button
-                onClick={() => setRunning(true)} disabled={running}
+                onClick={async () => { await api.startCamera(camId); setRunning(true); }} disabled={running}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm disabled:opacity-50"
               >
                 <Play className="h-4 w-4" /> Start Camera
               </button>
               <button
-                onClick={() => setRunning(false)} disabled={!running}
+                onClick={async () => { await api.stopCamera(camId); setRunning(false); }} disabled={!running}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-sm disabled:opacity-50"
               >
                 <Square className="h-4 w-4" /> Stop Camera

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { WS_URL, api, type Alert } from "./api";
+import { WS_URL, api, enrichAlert, type AlertPayload, type Alert } from "./api";
 
 export type ConnState = "connected" | "reconnecting" | "offline";
 
@@ -44,7 +44,9 @@ export function useAlertStream() {
         ws.onmessage = (e) => {
           try {
             const msg = JSON.parse(e.data);
-            if (msg.event === "NEW_ALERT" && msg.data) emit(msg.data as Alert);
+            if (msg.event === "NEW_ALERT" && msg.data) {
+              emit(enrichAlert(msg.data as AlertPayload));
+            }
           } catch { /* noop */ }
         };
         ws.onclose = () => {

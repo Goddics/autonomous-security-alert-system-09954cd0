@@ -31,17 +31,33 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
 }
 
 // ---------- Types ----------
+// Matches backend contract exactly.
 export type AlertStatus = "new" | "under_review" | "resolved" | "false_alarm";
 
-export interface Alert {
+// Wire shape from REST + WebSocket NEW_ALERT.data
+export interface AlertPayload {
   id: string;
-  alert_type: string;
   camera_id: number;
-  camera_name: string;
+  alert_type: string;
   timestamp: string;
   confidence: number;
   screenshot_url: string;
+  status?: AlertStatus;
+}
+
+// UI-enriched alert (adds camera_name + default status for rendering)
+export interface Alert extends AlertPayload {
+  camera_name: string;
   status: AlertStatus;
+}
+
+export function enrichAlert(a: AlertPayload): Alert {
+  const cam = cameras.find(c => c.id === a.camera_id);
+  return {
+    ...a,
+    camera_name: cam?.name ?? `Camera ${a.camera_id}`,
+    status: a.status ?? "new",
+  };
 }
 
 export interface Incident {
@@ -141,17 +157,56 @@ export const api = {
 
   alerts: () =>
     tryOrMock<Alert[]>(
-      () => request<Alert[]>("/api/alerts/"),
+      async () => {
+        const raw = await request<AlertPayload[]>("/api/alerts/");
+        return raw.map(enrichAlert);
+      },
       () => [...mockAlerts].sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))
     ),
 
   updateAlert: (id: string, status: AlertStatus) =>
     tryOrMock<Alert>(
-      () => request<Alert>(`/api/alerts/${id}/`, { method: "PATCH", body: JSON.stringify({ status }) }),
+      async () => {
+        const raw = await request<AlertPayload>(`/api/alerts/${id}/`, {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        });
+        return enrichAlert({ ...raw, status });
+      },
       () => {
         mockAlerts = mockAlerts.map(a => (a.id === id ? { ...a, status } : a));
         return mockAlerts.find(a => a.id === id)!;
       }
+    ),
+
+  startCamera: (camera_id: number) =>
+    tryOrMock<{ ok: true; camera_id: number }>(
+      () => request("/api/start-camera/", { method: "POST", body: JSON.stringify({ camera_id }) }),
+      () => ({ ok: true, camera_id })
+    ),
+
+  stopCamera: (camera_id: number) =>
+    tryOrMock<{ ok: true; camera_id: number }>(
+      () => request("/api/stop-camera/", { method: "POST", body: JSON.stringify({ camera_id }) }),
+      () => ({ ok: true, camera_id })
+    ),
+
+  uploadVideo: (file: File, camera_id?: number) =>
+    tryOrMock<{ ok: true; filename: string }>(
+      async () => {
+        const fd = new FormData();
+        fd.append("video", file);
+        if (camera_id != null) fd.append("camera_id", String(camera_id));
+        const token = getToken();
+        const res = await fetch(`${API_URL}/api/upload-video/`, {
+          method: "POST",
+          headers: token ? { Authorization: `Token ${token}` } : {},
+          body: fd,
+        });
+        if (!res.ok) throw new Error(`API ${res.status}`);
+        return res.json();
+      },
+      () => ({ ok: true, filename: file.name })
     ),
 
   incidents: () =>
