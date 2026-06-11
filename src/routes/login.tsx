@@ -72,10 +72,12 @@ function LoginPage() {
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
           </button>
-          <p className="text-[11px] text-muted-foreground mt-4 text-center">
-            Demo: any username works. Use one containing <span className="text-foreground">admin</span> for admin role.
-          </p>
         </form>
+        <div className="mt-5 p-4 rounded-lg border border-border bg-card/50 text-[12px] leading-relaxed text-muted-foreground">
+          <div className="font-medium text-foreground mb-1">Restricted Access</div>
+          Accounts are created and managed by system administrators.
+          Contact your administrator to obtain authorized credentials.
+        </div>
       </div>
     </div>
   );
