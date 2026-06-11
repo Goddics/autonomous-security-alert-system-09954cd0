@@ -1,18 +1,20 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useAlertStream, onNewAlert, type ConnState } from "@/lib/useAlertStream";
+import { api } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  Shield, LayoutDashboard, Video, BellRing, FileText, Settings, LogOut, Volume2, VolumeX,
+  Shield, LayoutDashboard, Video, BellRing, FileText, Settings, LogOut, Volume2, VolumeX, Users, KeyRound,
 } from "lucide-react";
 
-type NavItem = { to: "/dashboard" | "/monitoring" | "/alerts" | "/incidents" | "/settings"; label: string; icon: typeof LayoutDashboard; admin?: boolean };
+type NavItem = { to: "/dashboard" | "/monitoring" | "/alerts" | "/incidents" | "/users" | "/settings"; label: string; icon: typeof LayoutDashboard; admin?: boolean };
 const nav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/monitoring", label: "Live Monitoring", icon: Video },
   { to: "/alerts", label: "Alerts", icon: BellRing },
   { to: "/incidents", label: "Incidents", icon: FileText },
+  { to: "/users", label: "User Management", icon: Users, admin: true },
   { to: "/settings", label: "Settings", icon: Settings, admin: true },
 ];
 
