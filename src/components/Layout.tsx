@@ -34,7 +34,7 @@ function ConnDot({ state }: { state: ConnState }) {
 }
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, mustChangePassword, clearMustChangePassword, logout } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: s => s.location.pathname });
   const conn = useAlertStream();
