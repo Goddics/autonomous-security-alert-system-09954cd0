@@ -43,10 +43,10 @@ function DashboardPage() {
     <div className="p-8">
       <PageHeader title="Operations Dashboard" subtitle="Real-time overview of detection activity across all facilities." />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Stat icon={BellRing} label="Total Alerts Today" value={data?.total_today ?? "—"} accent="bg-primary/15 text-primary" />
-        <Stat icon={AlertTriangle} label="Pending Reviews" value={data?.pending ?? "—"} accent="bg-warn/15 text-warn" />
-        <Stat icon={ShieldAlert} label="False Alarm Rate" value={data ? `${data.false_alarm_rate}%` : "—"} accent="bg-threat/15 text-threat" />
-        <Stat icon={Camera} label="Active Cameras" value={data?.active_cameras ?? "—"} accent="bg-success/15 text-success" />
+        <Stat icon={BellRing} label="Total Alerts Today" value={data?.total_alerts_today ?? "—"} accent="bg-primary/15 text-primary" />
+        <Stat icon={AlertTriangle} label="Pending Reviews" value={data?.pending_review_count ?? "—"} accent="bg-warn/15 text-warn" />
+        <Stat icon={ShieldAlert} label="False Alarm Rate" value={data ? `${data.false_alarm_rate_percent}%` : "—"} accent="bg-threat/15 text-threat" />
+        <Stat icon={Camera} label="Active Cameras" value={data?.active_camera_feeds ?? "—"} accent="bg-success/15 text-success" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

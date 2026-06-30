@@ -37,12 +37,13 @@ export type AlertStatus = "new" | "under_review" | "resolved" | "false_alarm";
 // Wire shape from REST + WebSocket NEW_ALERT.data
 export interface AlertPayload {
   id: string;
-  camera_id: number;
+  camera: number;
   alert_type: string;
   timestamp: string;
-  confidence: number;
+  confidence_at_trigger: number;
   screenshot_url: string;
-  status?: AlertStatus;
+  // status?: AlertStatus;
+  status: AlertStatus;
 }
 
 // UI-enriched alert (adds camera_name + default status for rendering)
@@ -52,9 +53,15 @@ export interface Alert extends AlertPayload {
 }
 
 export function enrichAlert(a: AlertPayload): Alert {
-  const cam = cameras.find(c => c.id === a.camera_id);
+  const cam = cameras.find((c) => c.id === a.camera_id);
+
   return {
     ...a,
+    screenshot_url: a.screenshot_url
+      ? a.screenshot_url.startsWith("http")
+        ? a.screenshot_url
+        : `${API_URL}/${a.screenshot_url}`
+      : null,
     camera_name: cam?.name ?? `Camera ${a.camera_id}`,
     status: a.status ?? "new",
   };
@@ -69,10 +76,10 @@ export interface Incident {
 }
 
 export interface DashboardStats {
-  total_today: number;
-  pending: number;
-  false_alarm_rate: number;
-  active_cameras: number;
+  total_alerts_today: number;
+  pending_review_count: number;
+  false_alarm_rate_percent: number;
+  active_camera_feeds: number;
   recent_alerts: Alert[];
   series: { hour: string; alerts: number }[];
 }
@@ -143,12 +150,16 @@ export const api = {
 
   login: (username: string, password: string) =>
     tryOrMock(
-      () => request<{ token: string; role: UserRole; username: string; must_change_password: boolean }>("/api/login/", {
-        method: "POST",
-        body: JSON.stringify({ username, password }),
-      }),
+      () =>
+        request<{ token: string; role: UserRole; username: string; must_change_password: boolean }>(
+          "/api/login/",
+          {
+            method: "POST",
+            body: JSON.stringify({ username, password }),
+          },
+        ),
       () => {
-        const u = mockUsers.find(x => x.username.toLowerCase() === username.toLowerCase());
+        const u = mockUsers.find((x) => x.username.toLowerCase() === username.toLowerCase());
         if (!u) throw new Error("Invalid credentials");
         if (!u.is_active) throw new Error("Account deactivated");
         if (mockPasswords[u.username] !== password) throw new Error("Invalid credentials");
@@ -158,12 +169,16 @@ export const api = {
           username: u.username,
           must_change_password: u.must_change_password,
         };
-      }
+      },
     ),
 
   changePassword: (new_password: string) =>
     tryOrMock<{ ok: true }>(
-      () => request("/api/change-password/", { method: "POST", body: JSON.stringify({ new_password }) }),
+      () =>
+        request("/api/change-password/", {
+          method: "POST",
+          body: JSON.stringify({ new_password }),
+        }),
       () => {
         // mark current user (best-effort, demo only)
         const raw = typeof window !== "undefined" ? localStorage.getItem("sas_user") : null;
@@ -171,24 +186,28 @@ export const api = {
           try {
             const u = JSON.parse(raw) as { username: string };
             mockPasswords[u.username] = new_password;
-            mockUsers = mockUsers.map(x => x.username === u.username ? { ...x, must_change_password: false } : x);
-          } catch { /* noop */ }
+            mockUsers = mockUsers.map((x) =>
+              x.username === u.username ? { ...x, must_change_password: false } : x,
+            );
+          } catch {
+            /* noop */
+          }
         }
         return { ok: true };
-      }
+      },
     ),
 
   listUsers: () =>
     tryOrMock<ManagedUser[]>(
       () => request<ManagedUser[]>("/api/users/"),
-      () => [...mockUsers].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+      () => [...mockUsers].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)),
     ),
 
   createUser: (data: { username: string; password: string; role: UserRole }) =>
     tryOrMock<ManagedUser>(
       () => request<ManagedUser>("/api/users/", { method: "POST", body: JSON.stringify(data) }),
       () => {
-        if (mockUsers.some(u => u.username.toLowerCase() === data.username.toLowerCase())) {
+        if (mockUsers.some((u) => u.username.toLowerCase() === data.username.toLowerCase())) {
           throw new Error("Username already exists");
         }
         const u: ManagedUser = {
@@ -202,48 +221,63 @@ export const api = {
         mockUsers = [u, ...mockUsers];
         mockPasswords[data.username] = data.password;
         return u;
-      }
+      },
     ),
 
   resetUserPassword: (id: string, temporary_password: string) =>
     tryOrMock<ManagedUser>(
-      () => request<ManagedUser>(`/api/users/${id}/reset-password/`, { method: "POST", body: JSON.stringify({ temporary_password }) }),
+      () =>
+        request<ManagedUser>(`/api/users/${id}/reset-password/`, {
+          method: "POST",
+          body: JSON.stringify({ temporary_password }),
+        }),
       () => {
-        const u = mockUsers.find(x => x.id === id);
+        const u = mockUsers.find((x) => x.id === id);
         if (!u) throw new Error("Not found");
         mockPasswords[u.username] = temporary_password;
-        mockUsers = mockUsers.map(x => x.id === id ? { ...x, must_change_password: true } : x);
-        return mockUsers.find(x => x.id === id)!;
-      }
+        mockUsers = mockUsers.map((x) => (x.id === id ? { ...x, must_change_password: true } : x));
+        return mockUsers.find((x) => x.id === id)!;
+      },
     ),
 
   setUserActive: (id: string, is_active: boolean) =>
     tryOrMock<ManagedUser>(
-      () => request<ManagedUser>(`/api/users/${id}/`, { method: "PATCH", body: JSON.stringify({ is_active }) }),
+      () =>
+        request<ManagedUser>(`/api/users/${id}/`, {
+          method: "PATCH",
+          body: JSON.stringify({ is_active }),
+        }),
       () => {
-        mockUsers = mockUsers.map(x => x.id === id ? { ...x, is_active } : x);
-        return mockUsers.find(x => x.id === id)!;
-      }
+        mockUsers = mockUsers.map((x) => (x.id === id ? { ...x, is_active } : x));
+        return mockUsers.find((x) => x.id === id)!;
+      },
     ),
 
   dashboard: () =>
     tryOrMock<DashboardStats>(
       () => request<DashboardStats>("/api/dashboard/"),
       () => {
-        const today = mockAlerts.filter(a => new Date(a.timestamp).toDateString() === new Date().toDateString());
+        const today = mockAlerts.filter(
+          (a) => new Date(a.timestamp).toDateString() === new Date().toDateString(),
+        );
         const series = Array.from({ length: 12 }, (_, i) => ({
           hour: `${(i * 2).toString().padStart(2, "0")}:00`,
           alerts: Math.floor(Math.random() * 8),
         }));
         return {
           total_today: today.length,
-          pending: mockAlerts.filter(a => a.status === "new" || a.status === "under_review").length,
-          false_alarm_rate: Math.round((mockAlerts.filter(a => a.status === "false_alarm").length / mockAlerts.length) * 100),
+          pending: mockAlerts.filter((a) => a.status === "new" || a.status === "under_review")
+            .length,
+          false_alarm_rate: Math.round(
+            (mockAlerts.filter((a) => a.status === "false_alarm").length / mockAlerts.length) * 100,
+          ),
           active_cameras: cameras.length,
-          recent_alerts: [...mockAlerts].sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp)).slice(0, 5),
+          recent_alerts: [...mockAlerts]
+            .sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))
+            .slice(0, 5),
           series,
         };
-      }
+      },
     ),
 
   alerts: () =>
@@ -252,7 +286,7 @@ export const api = {
         const raw = await request<AlertPayload[]>("/api/alerts/");
         return raw.map(enrichAlert);
       },
-      () => [...mockAlerts].sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))
+      () => [...mockAlerts].sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp)),
     ),
 
   updateAlert: (id: string, status: AlertStatus) =>
@@ -265,21 +299,24 @@ export const api = {
         return enrichAlert({ ...raw, status });
       },
       () => {
-        mockAlerts = mockAlerts.map(a => (a.id === id ? { ...a, status } : a));
-        return mockAlerts.find(a => a.id === id)!;
-      }
+        mockAlerts = mockAlerts.map((a) => (a.id === id ? { ...a, status } : a));
+        return mockAlerts.find((a) => a.id === id)!;
+      },
     ),
 
   startCamera: (camera_id: number) =>
     tryOrMock<{ ok: true; camera_id: number }>(
-      () => request("/api/start-camera/", { method: "POST", body: JSON.stringify({ camera_id }) }),
-      () => ({ ok: true, camera_id })
+      () => {
+        request("/api/start-camera/", { method: "POST", body: JSON.stringify({ camera_id }) });
+      },
+      () => ({ ok: true, camera_id }),
     ),
+  liveStream: (cameraId: number) => `${API_URL}/api/live-stream/${cameraId}/`,
 
   stopCamera: (camera_id: number) =>
     tryOrMock<{ ok: true; camera_id: number }>(
       () => request("/api/stop-camera/", { method: "POST", body: JSON.stringify({ camera_id }) }),
-      () => ({ ok: true, camera_id })
+      () => ({ ok: true, camera_id }),
     ),
 
   uploadVideo: (file: File, camera_id?: number) =>
@@ -297,23 +334,27 @@ export const api = {
         if (!res.ok) throw new Error(`API ${res.status}`);
         return res.json();
       },
-      () => ({ ok: true, filename: file.name })
+      () => ({ ok: true, filename: file.name }),
     ),
 
   incidents: () =>
     tryOrMock<Incident[]>(
       () => request<Incident[]>("/api/incidents/"),
-      () => [...mockIncidents]
+      () => [...mockIncidents],
     ),
 
   createIncident: (data: Omit<Incident, "id" | "created_at">) =>
     tryOrMock<Incident>(
       () => request<Incident>("/api/incidents/", { method: "POST", body: JSON.stringify(data) }),
       () => {
-        const inc: Incident = { ...data, id: `i_${Date.now()}`, created_at: new Date().toISOString() };
+        const inc: Incident = {
+          ...data,
+          id: `i_${Date.now()}`,
+          created_at: new Date().toISOString(),
+        };
         mockIncidents = [inc, ...mockIncidents];
         return inc;
-      }
+      },
     ),
 
   resetDemo: () =>
@@ -323,10 +364,12 @@ export const api = {
         mockAlerts = Array.from({ length: 12 }, (_, i) => makeAlert(i));
         mockIncidents = [];
         return { ok: true };
-      }
+      },
     ),
 
   // For mock injection of incoming WS alerts
-  _pushMockAlert: (a: Alert) => { mockAlerts = [a, ...mockAlerts]; },
+  _pushMockAlert: (a: Alert) => {
+    mockAlerts = [a, ...mockAlerts];
+  },
   _makeMockAlert: makeAlert,
 };
