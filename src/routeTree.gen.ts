@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppUsersRouteImport } from './routes/_app.users'
+import { Route as AppUploadsRouteImport } from './routes/_app.uploads'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppMonitoringRouteImport } from './routes/_app.monitoring'
 import { Route as AppIncidentsRouteImport } from './routes/_app.incidents'
@@ -36,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppUsersRoute = AppUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUploadsRoute = AppUploadsRouteImport.update({
+  id: '/uploads',
+  path: '/uploads',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/incidents': typeof AppIncidentsRoute
   '/monitoring': typeof AppMonitoringRoute
   '/settings': typeof AppSettingsRoute
+  '/uploads': typeof AppUploadsRoute
   '/users': typeof AppUsersRoute
 }
 export interface FileRoutesByTo {
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/incidents': typeof AppIncidentsRoute
   '/monitoring': typeof AppMonitoringRoute
   '/settings': typeof AppSettingsRoute
+  '/uploads': typeof AppUploadsRoute
   '/users': typeof AppUsersRoute
 }
 export interface FileRoutesById {
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/_app/incidents': typeof AppIncidentsRoute
   '/_app/monitoring': typeof AppMonitoringRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/uploads': typeof AppUploadsRoute
   '/_app/users': typeof AppUsersRoute
 }
 export interface FileRouteTypes {
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/incidents'
     | '/monitoring'
     | '/settings'
+    | '/uploads'
     | '/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/incidents'
     | '/monitoring'
     | '/settings'
+    | '/uploads'
     | '/users'
   id:
     | '__root__'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/_app/incidents'
     | '/_app/monitoring'
     | '/_app/settings'
+    | '/_app/uploads'
     | '/_app/users'
   fileRoutesById: FileRoutesById
 }
@@ -164,6 +176,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/uploads': {
+      id: '/_app/uploads'
+      path: '/uploads'
+      fullPath: '/uploads'
+      preLoaderRoute: typeof AppUploadsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -210,6 +229,7 @@ interface AppRouteChildren {
   AppIncidentsRoute: typeof AppIncidentsRoute
   AppMonitoringRoute: typeof AppMonitoringRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppUploadsRoute: typeof AppUploadsRoute
   AppUsersRoute: typeof AppUsersRoute
 }
 
@@ -219,6 +239,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIncidentsRoute: AppIncidentsRoute,
   AppMonitoringRoute: AppMonitoringRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppUploadsRoute: AppUploadsRoute,
   AppUsersRoute: AppUsersRoute,
 }
 

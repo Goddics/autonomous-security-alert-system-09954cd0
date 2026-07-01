@@ -84,6 +84,21 @@ export interface DashboardStats {
   series: { hour: string; alerts: number }[];
 }
 
+export interface UploadVideoResponse {
+  file_id: number;
+  file_name: string;
+  status: string;
+  uploaded_at: string;
+}
+
+export interface ProcessVideoResponse {
+  ok: true;
+  status: "processing" | "completed";
+  file_id: number;
+  file_name?: string;
+  message?: string;
+}
+
 // ---------- Mock fallback ----------
 const cameras = [
   { id: 1, name: "Library Entrance" },
@@ -94,7 +109,9 @@ const cameras = [
 
 const alertTypes = ["Loitering", "Bag Theft", "Suspicious Object", "Unauthorized Access"];
 
-function rand<T>(a: T[]) { return a[Math.floor(Math.random() * a.length)]; }
+function rand<T>(a: T[]) {
+  return a[Math.floor(Math.random() * a.length)];
+}
 
 function makeAlert(i = 0): Alert {
   const cam = rand(cameras);
@@ -136,12 +153,30 @@ const mockPasswords: Record<string, string> = {
   "officer.kay": "temp1234",
 };
 let mockUsers: ManagedUser[] = [
-  { id: "u_1", username: "admin", role: "admin", is_active: true, created_at: new Date(Date.now() - 86400000 * 30).toISOString(), must_change_password: false },
-  { id: "u_2", username: "officer.kay", role: "security", is_active: true, created_at: new Date(Date.now() - 86400000 * 7).toISOString(), must_change_password: true },
+  {
+    id: "u_1",
+    username: "admin",
+    role: "admin",
+    is_active: true,
+    created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+    must_change_password: false,
+  },
+  {
+    id: "u_2",
+    username: "officer.kay",
+    role: "security",
+    is_active: true,
+    created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
+    must_change_password: true,
+  },
 ];
 
 async function tryOrMock<T>(fn: () => Promise<T>, mock: () => T): Promise<T> {
-  try { return await fn(); } catch { return mock(); }
+  try {
+    return await fn();
+  } catch {
+    return mock();
+  }
 }
 
 // ---------- API ----------
@@ -320,10 +355,10 @@ export const api = {
     ),
 
   uploadVideo: (file: File, camera_id?: number) =>
-    tryOrMock<{ ok: true; filename: string }>(
+    tryOrMock<UploadVideoResponse>(
       async () => {
         const fd = new FormData();
-        fd.append("video", file);
+        fd.append("video_file", file);
         if (camera_id != null) fd.append("camera_id", String(camera_id));
         const token = getToken();
         const res = await fetch(`${API_URL}/api/upload-video/`, {
@@ -331,10 +366,48 @@ export const api = {
           headers: token ? { Authorization: `Token ${token}` } : {},
           body: fd,
         });
-        if (!res.ok) throw new Error(`API ${res.status}`);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`API ${res.status}: ${text}`);
+        }
         return res.json();
       },
-      () => ({ ok: true, filename: file.name }),
+      () => ({
+        file_id: Date.now(),
+        file_name: file.name,
+        status: "uploaded",
+        uploaded_at: new Date().toISOString(),
+      }),
+    ),
+
+  processVideo: (video_id: number) =>
+    tryOrMock<ProcessVideoResponse>(
+      async () => {
+        const raw = await request<ProcessVideoResponse>(`/api/process-video/${video_id}/`, {
+          method: "POST",
+        });
+        return raw;
+      },
+      () => ({
+        ok: true,
+        status: "completed",
+        id: video_id,
+        message: "Processing complete.",
+      }),
+    ),
+
+  downloadVideo: (video_id: number) =>
+    tryOrMock<Blob>(
+      async () => {
+        const token = getToken();
+        const res = await fetch(`${API_URL}/api/download-video/${video_id}/`, {
+          method: "GET",
+          headers: token ? { Authorization: `Token ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`API ${res.status}`);
+        return res.blob();
+      },
+      () => new Blob(["demo video content"], { type: "video/mp4" }),
     ),
 
   incidents: () =>
